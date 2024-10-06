@@ -83,4 +83,17 @@ if __name__ == "__main__":
         action = action["content"]
         env.step(player_name, action)
 
+    ## full version: run until the game reaches the terminal state
+    # while True:
+    #     player_name = env.get_next_player()
+    #     player = players[player_name]
+    #     action = player.generate_reply()
+    #     time.sleep(0.1)
+    #     action = action["content"]
+        
+    #     # Execute step and break loop if _terminal is True
+    #     if env.step(player_name, action):
+    #         print("Game has reached the terminal state. Exiting...")
+    #         break
+
     
