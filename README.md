@@ -1,6 +1,6 @@
 #### Install dependencies
 
-- For Python, run `pip install -r ./backend/requirements.txt`, I’d strongly suggest creating a virtual environment for that
+- For Python, run `pip install -r requirements.txt`, I’d strongly suggest creating a virtual environment for that
 - For node.js, run `npm install`
 
 #### Run the program
