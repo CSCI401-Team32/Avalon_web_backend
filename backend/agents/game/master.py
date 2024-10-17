@@ -1,6 +1,7 @@
 from typing import List, Union, Iterable
 from dataclasses import dataclass
 import sys
+import asyncio
 
 from backend.utils import *
 from .player import *
@@ -19,7 +20,8 @@ class AvalonVanilla():
     type_name = 'AvalonVanilla'
 
     # Note: I added two new args: players and moderator
-    def __init__(self, players, moderator, char_to_name: dict = {}, name_to_char: dict = {}, output_folder_name: str = ""):
+    def __init__(self, web_socket, players, moderator, char_to_name: dict = {}, name_to_char: dict = {}, output_folder_name: str = ""):
+        self.web_socket = web_socket
         self.players = players
         self.results = {}
         self.moderator = moderator
@@ -62,7 +64,9 @@ class AvalonVanilla():
         self.first_order_player_option_idx = 0
 
         self.reset()
-
+    
+    async def send_websocket_message(self, message):
+        await self.web_socket.send_text(json.dumps(message))
 
     # Note: added by Steven. Some of the args are unnecessary but included to interface with the original class
     def send_message(self, agent_name, content, turn, timestamp="wuhu", visible_to="all", msg_type="text", logged=False):
@@ -96,6 +100,16 @@ class AvalonVanilla():
         for player in recipients:
             sender.send(content, player)
 
+            message = {
+                'sender': agent_name,
+                'recipient': player.name,
+                'content': content,
+                'turn': turn,
+                'timestamp': timestamp,
+                'visible_to': visible_to,
+                'msg_type': msg_type
+            }
+            asyncio.create_task(self.send_websocket_message(message))
 
     # Note: added by Steven. Some of the args are unnecessary but included to interface with the original class
     def _moderator_speak(self, text: str, visible_to: str | list = "all", round: int = 0, msg_type=None):
@@ -119,6 +133,16 @@ class AvalonVanilla():
         # Send the moderator's message to each recipient
         for player in recipients:
             self.moderator.send(text, player)
+
+            message = {
+                'sender': 'Moderator',
+                'recipient': player.name,
+                'content': text,
+                'turn': round,
+                'visible_to': visible_to,
+                'msg_type': msg_type
+            }
+            asyncio.create_task(self.send_websocket_message(message))
 
     # # start the game, everyone knows who is leader first
     # # for the first round, no deductive reasoning, only contemplation
