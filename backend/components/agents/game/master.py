@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import sys
 import asyncio
 
-from backend.utils import *
+from components.utils import *
 from .player import *
 from prompts import Role_tips, game_description, Moderator_speech, format_control, \
     format_control_schemas, Moderator_remember_speech

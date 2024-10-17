@@ -6,8 +6,8 @@ import json
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from autogen import ConversableAgent, config_list_from_json
-from backend.agents.game.player import *
-from backend.agents.game.master import *
+from components.agents.game.player import *
+from components.agents.game.master import *
 
 app = FastAPI()
 
@@ -19,6 +19,10 @@ def create_player(player_name, role_desc, backend):
         llm_config=backend
     )
     return player
+
+@app.head("/")
+async def root_head():
+    return {"message": "Uvicorn server is running"}
 
 @app.websocket("/avalon")
 async def websocket_endpoint(websocket: WebSocket):
