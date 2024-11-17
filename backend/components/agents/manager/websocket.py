@@ -6,6 +6,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 #adapted from https://github.com/microsoft/autogen/blob/main/samples/apps/autogen-studio/autogenstudio/websocket_connection_manager.py
 
+# the above link is invalid now, referring to https://github.com/microsoft/autogen/blob/main/python/packages/autogen-studio/autogenstudio/web/managers/connection.py
+
 class WebSocketConnectionManager:
     """
     Manages WebSocket connections including sending, broadcasting, and managing the lifecycle of connections.
@@ -78,41 +80,73 @@ class WebSocketConnectionManager:
             print(f"Error in sending message: {str(e)}", message)
             await self.disconnect(websocket)
 
+    # async def get_input(self, prompt: Union[Dict, str], websocket: WebSocket, timeout: int = 60) -> str:
+    #     """
+    #     Sends a JSON message to a single WebSocket connection as a prompt for user input.
+    #     Waits on a user response or until the given timeout elapses.
+
+    #     :param prompt: A JSON serializable dictionary containing the message to send.
+    #     :param websocket: The WebSocket instance through which to send the message.
+    #     """
+    #     response = "Error: Unexpected response.\nTERMINATE"
+    #     try:
+    #         async with self.active_connections_lock:
+    #             await websocket.send_json(prompt)
+    #             result = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
+    #             data = result.get("data")
+    #             if data:
+    #                 response = data.get("content", "Error: Unexpected response format\nTERMINATE")
+    #             else:
+    #                 response = "Error: Unexpected response format\nTERMINATE"
+
+    #     except asyncio.TimeoutError:
+    #         response = f"The user was timed out after {timeout} seconds of inactivity.\nTERMINATE"
+    #     except WebSocketDisconnect:
+    #         print("Error: Tried to send a message to a closed WebSocket")
+    #         await self.disconnect(websocket)
+    #         response = "The user was disconnected\nTERMINATE"
+    #     except websockets.exceptions.ConnectionClosedOK:
+    #         print("Error: WebSocket connection closed normally")
+    #         await self.disconnect(websocket)
+    #         response = "The user was disconnected\nTERMINATE"
+    #     except Exception as e:
+    #         print(f"Error in sending message: {str(e)}", prompt)
+    #         await self.disconnect(websocket)
+    #         response = f"Error: {e}\nTERMINATE"
+
+    #     return response
+
     async def get_input(self, prompt: Union[Dict, str], websocket: WebSocket, timeout: int = 60) -> str:
         """
         Sends a JSON message to a single WebSocket connection as a prompt for user input.
         Waits on a user response or until the given timeout elapses.
-
-        :param prompt: A JSON serializable dictionary containing the message to send.
-        :param websocket: The WebSocket instance through which to send the message.
         """
         response = "Error: Unexpected response.\nTERMINATE"
         try:
-            async with self.active_connections_lock:
-                await websocket.send_json(prompt)
-                result = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
-                data = result.get("data")
-                if data:
-                    response = data.get("content", "Error: Unexpected response format\nTERMINATE")
-                else:
-                    response = "Error: Unexpected response format\nTERMINATE"
+            # Send the prompt
+            await websocket.send_json(prompt)
+
+            # Wait for a response from the WebSocket
+            result = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
+            print(f"Received from WebSocket: {result}")
+
+
+            # Process the result
+            if isinstance(result, dict) and "content" in result:
+                response = result["content"]
+            else:
+                response = "Error: Unexpected response format.\nTERMINATE"
 
         except asyncio.TimeoutError:
             response = f"The user was timed out after {timeout} seconds of inactivity.\nTERMINATE"
         except WebSocketDisconnect:
-            print("Error: Tried to send a message to a closed WebSocket")
-            await self.disconnect(websocket)
-            response = "The user was disconnected\nTERMINATE"
-        except websockets.exceptions.ConnectionClosedOK:
-            print("Error: WebSocket connection closed normally")
-            await self.disconnect(websocket)
-            response = "The user was disconnected\nTERMINATE"
+            response = "The user was disconnected.\nTERMINATE"
         except Exception as e:
-            print(f"Error in sending message: {str(e)}", prompt)
-            await self.disconnect(websocket)
-            response = f"Error: {e}\nTERMINATE"
+            response = f"Error: {str(e)}\nTERMINATE"
 
         return response
+
+
 
     async def broadcast(self, message: Dict) -> None:
         """

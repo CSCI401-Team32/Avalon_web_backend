@@ -2,9 +2,14 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Ty
 import logger
 import inspect
 from dataclasses import dataclass
+import asyncio
+
 
 from autogen import ConversableAgent, Agent
 from autogen.runtime_logging import log_event, log_function_use, log_new_agent, logging_enabled
+
+from fastapi import WebSocket
+from components.agents.manager.websocket import WebSocketConnectionManager
 
 
 
@@ -23,7 +28,17 @@ class PlayerMessage:
 # as it provides limited control over individual agent actions within the group chat.
 
 class Player(ConversableAgent):
-    def __init__(self, *args, **kwargs):
+    # def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        role_desc: str,
+        global_prompt: str,
+        is_human: bool = False,
+        websocket: Optional[WebSocket] = None,
+        websocket_manager: Optional["WebSocketConnectionManager"] = None,
+        **kwargs,
+    ):
         # Check for required fields and raise an error if any are missing
         if 'name' not in kwargs:
             raise ValueError("Missing required argument: 'name'")
@@ -50,11 +65,38 @@ class Player(ConversableAgent):
         kwargs['system_message'] = system_message
         
         # Call the superclass initializer
-        super().__init__(*args, **kwargs)
+        # super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
+
         
         # Assign attributes
+        # self.role_desc = role_desc
+        # self.all_messages = []
+        self.name = name
         self.role_desc = role_desc
-        self.all_messages = []
+        self.global_prompt = global_prompt
+        self.is_human = is_human
+        self.websocket = websocket
+        self.websocket_manager = websocket_manager
+        self.all_messages = []  # Stores all message history for the player
+
+    async def get_human_input(self, prompt: str) -> str:
+        """Fetch input from a human player via WebSocket."""
+        if not self.websocket or not self.websocket_manager:
+            raise ValueError(f"WebSocket is not set for human player {self.name}.")
+
+        try:
+            response = await self.websocket_manager.get_input(
+                prompt={"sender": "server", "content": prompt},
+                websocket=self.websocket,
+                timeout=60  # Set a timeout for human input
+            )
+            return response
+        except asyncio.TimeoutError:
+            return "No response received (timed out)."
+        except Exception as e:
+            log_event(self, "human_input_error", error=str(e))
+            raise RuntimeError("Failed to get human input.") from e
 
 
     def get_visible_message(self, **kwargs):
@@ -185,9 +227,17 @@ class Player(ConversableAgent):
 
         return True
 
+    async def generate_reply(self, messages=None, sender=None, **kwargs):
+        """Generate a reply based on player type (human or AI)."""
+        if self.is_human:
+            # For human players, prompt for input
+            prompt = f"{self.name}, it's your turn. Please provide your action:"
+            return await self.get_human_input(prompt)
+        else:
+            # For AI players, use the existing ConversableAgent reply logic
+            return await self.generate_AI_reply(messages, sender, **kwargs)
 
-
-    def generate_reply(
+    def generate_AI_reply(
         self,
         messages: Optional[List[Dict[str, Any]]] = None,
         sender: Optional["Agent"] = None,
