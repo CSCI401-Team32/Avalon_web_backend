@@ -3,7 +3,10 @@ import logger
 import inspect
 from dataclasses import dataclass
 import asyncio
+import json
 
+import re
+import ast
 
 from autogen import ConversableAgent, Agent
 from autogen.runtime_logging import log_event, log_function_use, log_new_agent, logging_enabled
@@ -31,12 +34,6 @@ class Player(ConversableAgent):
     # def __init__(self, *args, **kwargs):
     def __init__(
         self,
-        # name: str,
-        # role_desc: str,
-        # global_prompt: str,
-        # is_human: bool = False,
-        # websocket: Optional[WebSocket] = None,
-        # websocket_manager: Optional["WebSocketConnectionManager"] = None,
         *args,
         **kwargs,
     ):
@@ -75,11 +72,8 @@ class Player(ConversableAgent):
         # super().__init__(**kwargs)
 
         
-        # Assign attributes
-        # self.role_desc = role_desc
-        # self.all_messages = []
+
         self.role_desc = role_desc
-        # self.global_prompt = global_prompt
         self.is_human = is_human
         self.websocket = websocket
         self.websocket_manager = websocket_manager
@@ -214,25 +208,20 @@ class Player(ConversableAgent):
             self.all_messages.append(message)
 
         return True
+        
 
     async def generate_reply(self, messages=None, sender=None, **kwargs):
         """Generate a reply based on player type (human or AI)."""
         if self.is_human:
-            # For human players, prompt for input
-            # prompt = f"{self.name}, it's your turn. Please provide your action:"
-            # return await self.get_human_input(prompt)
+            # For human players, request input via websocket
             response = await self.get_human_input(f"{self.name}, it's your turn. Please provide your action:")
-            return {"content": response}
-    
-    
+            return response # Return the content as a string
         else:
             # For AI players, use the existing ConversableAgent reply logic
-            # return await self.generate_AI_reply(messages, sender, **kwargs)
             response = await self.generate_AI_reply(messages, sender, **kwargs)
-            return {"content": response if response else "No reply generated."}
+            return response if response else "No reply generated."  # Ensure a string is returned
         
-
-    async def get_human_input(self, prompt: str) -> Dict[str, str]:
+    async def get_human_input(self, prompt: str) -> Optional[Dict[str, str]]:
         if not self.websocket or not self.websocket_manager:
             raise ValueError(f"WebSocket is not set for human player {self.name}.")
 
@@ -240,14 +229,36 @@ class Player(ConversableAgent):
             response = await self.websocket_manager.get_input(
                 prompt={"sender": "server", "content": prompt},
                 websocket=self.websocket,
-                timeout=60
+                timeout=300
             )
-            return {"content": response}  # Wrap response in a dictionary
-        except asyncio.TimeoutError:
-            return {"content": "No response received (timed out)."}
+                
+            print(f"Response from WebSocket manager: {response}")
+
+            if isinstance(response, dict):
+                if any(role in response.keys() for role in ["Merlin", "Percival", "Servant", "Morgana", "Assassin"]):
+                    return response
+                elif "team" in response and "Think" in response and "Speak" in response:
+                    return response
+                elif "Think" in response and "Speak" in response:
+                    return response
+                else:
+                    print(f"Unrecognized response format: {response}")
+                    return None
+
+            if isinstance(response, str):
+                try:
+                    parsed = json.loads(response)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except json.JSONDecodeError:
+                    print(f"Failed to parse JSON: {response}")
+
+            return None
+
         except Exception as e:
-            log_event(self, "human_input_error", error=str(e))
-            raise RuntimeError("Failed to get human input.") from e
+            print(f"Exception in get_human_input: {str(e)}")
+            return None
+
         
     def generate_AI_reply(
         self,
