@@ -4,20 +4,19 @@ import "./ChatApp.css";
 function ChatApp() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [selectedPlayer, setSelectedPlayer] = useState("Player1");
   const ws = useRef(null);
   const [round, setRound] = useState(1);
   const [alerts, setAlerts] = useState(true);
+
   // Initialize WebSocket connection
   useEffect(() => {
     ws.current = new WebSocket("ws://localhost:8000/avalon");
 
     ws.current.onmessage = (event) => {
       const newMessage = JSON.parse(event.data);
-      if (
-        newMessage.recipient === "Everyone" ||
-        newMessage.recipient === "Player1"
-      ) {
-        console.log("Received message:", newMessage);
+      console.log(newMessage);
+      if (newMessage.sender !== newMessage.recipient) {
         setMessages((prevMessages) => [...prevMessages, newMessage]);
       }
     };
@@ -31,26 +30,6 @@ function ChatApp() {
     };
   }, []);
 
-  useEffect(() => {
-    if (alerts) {
-      if (round === 1) {
-        alert(
-          "Type your Think and Speak in the following format: {Think}*{Speak}"
-        );
-        setAlerts(false);
-      } else if (round === 2) {
-        alert(
-          "Type your Merlin, Percival, Loyal Servant, Morgana, and Assassin in the following format: {Merlin}*{Percival}*{Loyal Servant}*{Morgana}*{Assassin}"
-        );
-      } else if (round === 3) {
-        alert(
-          "Type your Think, team, and Speak in the following format: {Think}*{team}*{Speak}"
-        );
-      }
-      setAlerts(false);
-    }
-  }, [round, alerts]);
-
   const handleInputChange = (e) => {
     setMessage(e.target.value);
   };
@@ -62,7 +41,7 @@ function ChatApp() {
       if (round === 1) {
         newMessage = {
           text: message,
-          sender: "You",
+          sender: "Player1",
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -70,12 +49,13 @@ function ChatApp() {
           msg_type: "chat",
           Think: parts[0] || "",
           Speak: parts[1] || "",
+          content: parts[1] || "",
         };
         setRound(2);
       } else if (round === 2) {
         newMessage = {
           text: message,
-          sender: "You",
+          sender: "Player1",
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -91,7 +71,7 @@ function ChatApp() {
       } else if (round === 3) {
         newMessage = {
           text: message,
-          sender: "You",
+          sender: "Player1",
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -100,11 +80,11 @@ function ChatApp() {
           Think: parts[0] || "",
           team: parts[1] || "",
           Speak: parts[2] || "",
+          content: parts[2] || "",
         };
         setRound(1); // Reset back to round 1
       }
 
-      console.log(newMessage);
       ws.current.send(JSON.stringify(newMessage));
       setMessages((prevMessages) => [...prevMessages, newMessage]);
       setMessage(""); // Clear the input field
@@ -112,11 +92,16 @@ function ChatApp() {
     }
   };
 
+  const handlePlayerSelect = (player) => {
+    setSelectedPlayer(player);
+  };
+
+  const filteredMessages = messages.filter(
+    (msg) => msg.recipient === selectedPlayer || msg.recipient === "Everyone"
+  );
+
   return (
     <div className="chat-app-container">
-      {/* Control Bar */}
-      <div className="control-bar">{/* Placeholder for control icons */}</div>
-
       {/* Players Section */}
       <div className="players-section">
         <div className="players-list">
@@ -126,9 +111,14 @@ function ChatApp() {
             "🐱 Player3",
             "👨🏿 Player4",
             "🦸 Player5",
-            "🧙 Player6",
           ].map((player, index) => (
-            <div key={index} className="player">
+            <div
+              key={index}
+              className={`player ${
+                selectedPlayer === player.split(" ")[1] ? "selected" : ""
+              }`}
+              onClick={() => handlePlayerSelect(player.split(" ")[1])}
+            >
               <div className="player-avatar">{player.split(" ")[0]}</div>
               {player.split(" ")[1]}
             </div>
@@ -136,15 +126,15 @@ function ChatApp() {
         </div>
         <div className="your-identity">
           <div>You are:</div>
-          <div className="identity">Villager</div>
+          <div className="identity">Player 1</div>
         </div>
       </div>
 
       {/* Chat Section */}
       <div className="chat-section">
-        <div className="chat-header">Day 1</div>
+        <div className="chat-header">Chat with {selectedPlayer}</div>
         <div className="chat-messages">
-          {messages.map((msg, index) => (
+          {filteredMessages.map((msg, index) => (
             <div key={index}>
               <span className="sender">{msg.sender}</span> to{" "}
               <span className="recipient">{msg.recipient}</span>:
