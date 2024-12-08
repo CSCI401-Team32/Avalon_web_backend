@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import "./ChatApp.css";
-import axios from "axios";
 
 function ChatApp() {
   const [message, setMessage] = useState("");
@@ -11,35 +10,38 @@ function ChatApp() {
   ]);
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const response = await axios.get("xxx");
-        setMessages(response.data);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-      }
+    const ws = new WebSocket("ws://localhost:8000/avalon");
+
+    ws.onmessage = (event) => {
+      const newMessage = JSON.parse(event.data);
+      setMessages((prevMessages) => [...prevMessages, newMessage]);
     };
 
-    // Fetch messages every 2 seconds
-    const interval = setInterval(fetchMessages, 2000);
-    return () => clearInterval(interval); // Cleanup on component unmount
+    ws.onclose = () => {
+      console.error("WebSocket connection closed");
+    };
+
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const handleInputChange = (e) => {
-    setMessage(e.target.value);
+    // setMessage(e.target.value);
   };
 
   const handleSendMessage = async () => {
     if (message.trim() !== "") {
       try {
-        // Send message to the backend
-        await axios.post("xxx", {
-          text: message,
-          sender: "You",
-        });
+        const newMessage = { text: message, sender: "You" };
+        // Send message through WebSocket (optional for sending real-time)
+        const ws = new WebSocket("ws://localhost:8000/avalon");
+        ws.onopen = () => {
+          ws.send(JSON.stringify(newMessage));
+        };
 
         // Update local state
-        setMessages([...messages, { text: message, sender: "You" }]);
+        setMessages([...messages, newMessage]);
         setMessage("");
       } catch (error) {
         console.error("Error sending message:", error);
