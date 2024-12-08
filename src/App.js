@@ -1,38 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import logo from './logo.svg';
+import './App.css';
 
 function App() {
-  const [messages, setMessages] = useState([]);
-
-  useEffect(() => {
-    // Connect to WebSocket running on FastAPI backend
-    const ws = new WebSocket("ws://localhost:8000/avalon");
-
-    ws.onmessage = (event) => {
-      // Parse the message as JSON
-      const newMessage = JSON.parse(event.data);
-      // Add the new parsed message to the list of messages
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket connection closed");
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, []);
-
   return (
-    <div>
-      <h2>Messages from Backend:</h2>
-      <ul>
-        {messages.map((msg, index) => (
-          <li key={index}>
-            {msg.sender} to {msg.recipient}: {msg.content} (Turn: {msg.turn}, Timestamp: {msg.timestamp})
-          </li>
-        ))}
-      </ul>
+    <div className="App">
+      <header className="App-header">
+        <img src={logo} className="App-logo" alt="logo" />
+        <p>
+          Edit <code>src/App.js</code> and save to reload.
+        </p>
+        <a
+          className="App-link"
+          href="https://reactjs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn React
+        </a>
+      </header>
     </div>
   );
 }
