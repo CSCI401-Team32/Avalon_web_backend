@@ -5,6 +5,7 @@ function ChatApp() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState("Player1");
+  const [currentPlayer, setCurrentPlayer] = useState("Player1");
   const ws = useRef(null);
   const [round, setRound] = useState(1);
   const [alerts, setAlerts] = useState(true);
@@ -41,7 +42,7 @@ function ChatApp() {
       if (round === 1) {
         newMessage = {
           text: message,
-          sender: "Player1",
+          sender: currentPlayer,
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -55,7 +56,7 @@ function ChatApp() {
       } else if (round === 2) {
         newMessage = {
           text: message,
-          sender: "Player1",
+          sender: currentPlayer,
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -71,7 +72,7 @@ function ChatApp() {
       } else if (round === 3) {
         newMessage = {
           text: message,
-          sender: "Player1",
+          sender: currentPlayer,
           recipient: "Everyone",
           turn: 1,
           timestamp: new Date().toISOString(),
@@ -96,6 +97,10 @@ function ChatApp() {
     setSelectedPlayer(player);
   };
 
+  const handleIdentityChange = (player) => {
+    setCurrentPlayer(player);
+  };
+
   const filteredMessages = messages.filter(
     (msg) => msg.recipient === selectedPlayer || msg.recipient === "Everyone"
   );
@@ -114,9 +119,8 @@ function ChatApp() {
           ].map((player, index) => (
             <div
               key={index}
-              className={`player ${
-                selectedPlayer === player.split(" ")[1] ? "selected" : ""
-              }`}
+              className={`player ${selectedPlayer === player.split(" ")[1] ? "selected" : ""
+                }`}
               onClick={() => handlePlayerSelect(player.split(" ")[1])}
             >
               <div className="player-avatar">{player.split(" ")[0]}</div>
@@ -126,7 +130,23 @@ function ChatApp() {
         </div>
         <div className="your-identity">
           <div>You are:</div>
-          <div className="identity">Player 1</div>
+          <select
+            value={currentPlayer}
+            onChange={(e) => handleIdentityChange(e.target.value)}
+            className="identity-selector"
+          >
+            {[
+              "Player1",
+              "Player2",
+              "Player3",
+              "Player4",
+              "Player5",
+            ].map((player, index) => (
+              <option key={index} value={player}>
+                {player}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
