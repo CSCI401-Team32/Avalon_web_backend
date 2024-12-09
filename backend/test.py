@@ -50,11 +50,11 @@ async def websocket_endpoint(websocket: WebSocket):
         name2role[f'Player{player_no}'] = characters[index]
         role2name[characters[index]] = f'Player{player_no}'
 
-    human_players = [1]  # Player1 is represented by the number 1 setting player 1 to be human for testing
+    human_players = [1, 2]  # Player1 and Player2 are human players
 
     # Log the human player information
     human_player_names = [f"Player{player_no}" for player_no in human_players]
-    print(f"********* Human Player for this game: {', '.join(human_player_names)} *********")
+    print(f"********* Human Players for this game: {', '.join(human_player_names)} *********")
 
     # Load backend configuration
     config_list = config_list_from_json(env_or_file="OAI_CONFIG_LIST")
@@ -103,46 +103,61 @@ async def websocket_endpoint(websocket: WebSocket):
     # Main game loop
     async def game_loop():
         print("Starting an example run of 5 steps...")
-        await websocket.send_text(json.dumps({"sender": "server", "recipient": "all", "content": "WebSocket connected", "turn": 1, "timestamp": str(datetime.datetime.now())}))
+        await websocket.send_text(json.dumps({
+            "sender": "server", 
+            "recipient": "all", 
+            "content": "WebSocket connected", 
+            "turn": 1, 
+            "timestamp": str(datetime.datetime.now())
+        }))
 
         total_rounds = 7
 
-        for round_number in range(1, total_rounds + 1): #7 rounds, so you can see a full loop for both AI and human
+        while not env._terminal:
+            try:
+                player_name = env.get_next_player()
+                player = players[player_name]
+                print(f"Current player: {player_name}")
 
-            player_name = env.get_next_player()
-            player = players[player_name]
-            print(f"********* Round {round_number}: Leader is {player_name} *********")
+                if player.is_human:
+                    try:
+                        print(f"Waiting for input from human player: {player.name}")
+                        action = await player.generate_reply()
+                        
+                        # Handle the initial role assignment response
+                        if isinstance(action, dict) and any(key in action for key in ['Merlin', 'Percival', 'Loyal Servant', 'Morgana', 'Assassin']):
+                            print("Received role assignments, continuing game...")
+                            continue
+                            
+                        if isinstance(action, str):
+                            try:
+                                action_content = json.loads(action)
+                            except json.JSONDecodeError:
+                                action_content = {"Think": action, "Speak": action}
+                        else:
+                            action_content = action
+                        print(f"Received input from human player: {action_content}")
+                    except Exception as e:
+                        print(f"Error processing human input: {str(e)}")
+                        action_content = {
+                            "Think": "Error occurred during input processing",
+                            "Speak": "Error occurred during input processing"
+                        }
+                else:
+                    # Generate action for AI player
+                    action = player.generate_AI_reply()
+                    action_content = action["content"]
+                    print(f"Generated input from AI player: {action}")
 
-            if player.is_human:
-                try:
-                    # for human player
-                    print(f"Waiting for input from human player: {player.name}")
-                    action = await player.generate_reply()
-                    if isinstance(action, str):
-                        try:
-                            action_content = json.loads(action)
-                        except json.JSONDecodeError:
-                            action_content = {"Think": action, "Speak": action}
-                    else:
-                        action_content = action
-                    print(f"Received input from human player: {action_content}")
-                except Exception as e:
-                    print(f"Error processing human input: {str(e)}")
-                    action_content = {
-                        "Think": "Error occurred during input processing",
-                        "Speak": "Error occurred during input processing"
-                    }
-            else:
-                # Generate action for AI player
-                action = player.generate_AI_reply()
-                action_content = action["content"]
-                print(f"Generated input from AI player: {action}")
+                await asyncio.sleep(2)
+                terminal = env.step(player_name, action_content)
+                
+                if terminal:
+                    break
 
-
-
-            await asyncio.sleep(5)
-            # action_content = action["content"]
-            env.step(player_name, action_content)
+            except Exception as e:
+                print(f"Error in game loop: {str(e)}")
+                continue
 
     await game_loop()
 

@@ -234,25 +234,39 @@ class Player(ConversableAgent):
                 
             print(f"Response from WebSocket manager: {response}")
 
+            # If response is already a dict, validate its structure
             if isinstance(response, dict):
-                if any(role in response.keys() for role in ["Merlin", "Percival", "Servant", "Morgana", "Assassin"]):
-                    return response
+                # Check for first_order format
+                if all(key in response for key in ["playerName", "role", "intent", "reasoning", "confidence", "evidence"]):
+                    return {
+                        "playerName": response["playerName"],
+                        "role": response["role"],
+                        "intent": response["intent"],
+                        "reasoning": response["reasoning"],
+                        "confidence": response["confidence"],
+                        "evidence": response["evidence"]
+                    }
+                # Check for team proposal format
                 elif "team" in response and "Think" in response and "Speak" in response:
                     return response
+                # Check for basic think/speak format
                 elif "Think" in response and "Speak" in response:
                     return response
                 else:
-                    print(f"Unrecognized response format: {response}")
+                    print(f"Invalid response format: {response}")
                     return None
 
             if isinstance(response, str):
                 try:
                     parsed = json.loads(response)
                     if isinstance(parsed, dict):
-                        return parsed
+                        # Recursively validate the parsed dictionary
+                        return await self.get_human_input(parsed)
                 except json.JSONDecodeError:
                     print(f"Failed to parse JSON: {response}")
+                    return {"Think": response, "Speak": response}  # Fallback format
 
+            print(f"Unhandled response type: {type(response)}")
             return None
 
         except Exception as e:
