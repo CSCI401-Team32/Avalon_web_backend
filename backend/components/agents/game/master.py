@@ -10,7 +10,7 @@ from prompts import Role_tips, game_description, Moderator_speech, format_contro
 
 
 
-# I prevented changing the class provided by the stakeholder significantly as that class is poorly written.
+# prevented changing the class provided by the stakeholder significantly
 # It's very easy to introduce bugs if altered. TODO: Will consider optimizing once everything is functioning correctly.
 
 # Note: I replaced all instances of Timestamp with self._terminal
